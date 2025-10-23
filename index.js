@@ -26,8 +26,7 @@ app.post("/api/login", async (req, res) => {
         for (let i = 0; i < row[0].password.length; i++) {
             passStar += "*"
         }
-
-        console.log(passStar)
+        
         if (row.length == 1) {
             res.json({ statusCheck: true, username: row[0].username, password: passStar , role: row[0].role });
         } else {
@@ -211,6 +210,70 @@ app.post("/api/warehouse/search", async (req, res) => {
     );
     res.json(dataWarehouse);
 });
+
+
+//-----------------------------------------------------------------------------
+app.post("/api/user/fix", async (req,res) => {
+    const {username,fullname,gender,birthday,position,phoneNumber,email} = req.body
+    await db.query (
+         `
+      UPDATE users_detail
+      SET 
+        fullname = ?, 
+        gender = ?, 
+        birthday = ?, 
+        position = ?, 
+        phone_number = ?, 
+        email = ?
+      WHERE username = ?
+      `,
+      [fullname, gender, birthday, position, phoneNumber, email, username]
+    )
+    res.sendStatus(200)
+})
+
+app.post("/api/users_detail", async (req,res) => {
+    const {username} = req.body
+    console.log(username)
+    try{
+        const [row] = await db.query(
+            `select * from quanlicuahang.users_detail where username = ?`, [username]
+        )
+
+        res.json(row)
+        res.sendStatus(200)
+
+    } catch {
+        res.json("ko tim thay username")
+    }
+
+})
+
+app.post("/api/findUser", async (req,res) => {
+    const {username, password} = req.body
+    const [row] = await db.query(
+        `select * from quanlicuahang.users where username = ? and password = ?`, [username, password]
+    )
+
+    if (row.length == 1) {
+        res.json({status: true})
+    } else {
+        res.json({status: false})
+    }
+
+})
+
+app.post("/api/user/change_password", async (req,res) => {
+    const {passwordChange, username} = req.body
+    try {
+        await db.query("update quanlicuahang.users set password = ? where username = ?", [passwordChange, username])
+        res.json({status: true})
+        res.sendStatus(200)
+    } catch {
+        res.json({status: false})
+        res.send("loi~")
+    }
+})
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
