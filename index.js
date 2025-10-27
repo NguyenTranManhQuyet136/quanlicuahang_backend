@@ -21,22 +21,19 @@ app.post("/api/login", async (req, res) => {
             [username, password],
         );
 
+
         const row = rows[0];
-        let passStar = ''
-        for (let i = 0; i < row[0].password.length; i++) {
-            passStar += "*"
-        }
-        
         if (row.length == 1) {
+            let passStar = ''
+            for (let i = 0; i < row[0].password.length; i++) {
+                passStar += "*"
+            } 
             res.json({ statusCheck: true, username: row[0].username, password: passStar , role: row[0].role });
         } else {
             res.json({ statusCheck: false });
         }
-    } catch (error) {
-        res.status(500).json({
-            message: "Internal Server Error",
-            error: error.message,
-        });
+    } catch {
+        res.status(500)
     }
 });
 
@@ -274,6 +271,8 @@ app.post("/api/user/change_password", async (req,res) => {
         res.send("loi~")
     }
 })
+
+
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
