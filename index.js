@@ -28,7 +28,7 @@ app.post("/api/login", async (req, res) => {
             for (let i = 0; i < row[0].password.length; i++) {
                 passStar += "*"
             } 
-            res.json({ statusCheck: true, username: row[0].username, password: passStar , role: row[0].role });
+            res.json({ statusCheck: true, username: row[0].username, password: passStar});
         } else {
             res.json({ statusCheck: false });
         }
@@ -45,34 +45,34 @@ app.get("/api/product", async (req, res) => {
 });
 
 app.post("/api/product/remove", async (req, res) => {
-    const { id } = req.body;
-    await db.query("DELETE FROM quanlicuahang.products WHERE id = ?", [id]);
+    const { product_id } = req.body;
+    await db.query("DELETE FROM quanlicuahang.products WHERE product_id = ?", [product_id]);
     res.sendStatus(200);
 });
 
 app.post("/api/product/add", async (req, res) => {
-    const { id, name, price, quantity, status } = req.body;
+    const { product_id, name, price, quantity, status } = req.body;
     await db.query(
-        `INSERT INTO quanlicuahang.products (id, name, price, quantity, status) VALUES (?,?,?,?,?)`,
-        [id, name, price, quantity, status],
+        `INSERT INTO quanlicuahang.products (product_id, name, price, quantity, status) VALUES (?,?,?,?,?)`,
+        [product_id, name, price, quantity, status],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/product/fix", async (req, res) => {
-    const { id, name, price, quantity, status, idOld } = req.body;
+    const { product_id, name, price, quantity, status, idOld } = req.body;
     await db.query(
-        ` UPDATE quanlicuahang.products SET id = ?, name = ?, price = ?, quantity = ?, status = ? WHERE id = ?`,
-        [id, name, price, quantity, status, idOld],
+        ` UPDATE quanlicuahang.products SET product_id = ?, name = ?, price = ?, quantity = ?, status = ? WHERE product_id = ?`,
+        [product_id, name, price, quantity, status, idOld],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/product/search", async (req, res) => {
-    const { id, name } = req.body;
+    const { product_id, name } = req.body;
     const [dataProduct] = await db.query(
-        `SELECT * FROM quanlicuahang.products WHERE id = ?  OR name LIKE ? `,
-        [id, `%${name}%`],
+        `SELECT * FROM quanlicuahang.products WHERE product_id = ?  OR name LIKE ? `,
+        [product_id, `%${name}%`],
     );
     res.json(dataProduct);
     res.sendStatus(200);
@@ -88,34 +88,34 @@ app.get("/api/customer", async (req, res) => {
 });
 
 app.post("/api/customer/remove", async (req, res) => {
-    const { id } = req.body;
-    await db.query("DELETE FROM quanlicuahang.customers WHERE id = ?", [id]);
+    const { customer_id } = req.body;
+    await db.query("DELETE FROM quanlicuahang.customers WHERE customer_id = ?", [customer_id]);
     res.sendStatus(200);
 });
 
 app.post("/api/customer/add", async (req, res) => {
-    const { id, fullname, birthyear, address, status } = req.body;
+    const { customer_id, fullname, birthyear, address, status } = req.body;
     await db.query(
-        `INSERT INTO quanlicuahang.customers (id,fullname,birthyear,address,status) VALUES (?,?,?,?,?)`,
-        [id, fullname, birthyear, address, status],
+        `INSERT INTO quanlicuahang.customers (customer_id,fullname,birthyear,address,status) VALUES (?,?,?,?,?)`,
+        [customer_id, fullname, birthyear, address, status],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/customer/fix", async (req, res) => {
-    const { id, fullname, birthyear, address, status, idOld } = req.body;
+    const { customer_id, fullname, birthyear, address, status, idOld } = req.body;
     await db.query(
-        ` UPDATE quanlicuahang.customers SET id = ?, fullname = ?, birthyear = ?, address = ?, status = ? WHERE id = ?`,
-        [id, fullname, birthyear, address, status, idOld],
+        ` UPDATE quanlicuahang.customers SET customer_id = ?, fullname = ?, birthyear = ?, address = ?, status = ? WHERE customer_id = ?`,
+        [customer_id, fullname, birthyear, address, status, idOld],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/customer/search", async (req, res) => {
-    const { id, fullname } = req.body;
+    const { customer_id, fullname } = req.body;
     const [dataCustomer] = await db.query(
-        `SELECT * FROM quanlicuahang.customers WHERE id = ?  OR fullname LIKE ? `,
-        [id, `%${fullname}%`],
+        `SELECT * FROM quanlicuahang.customers WHERE customer_id = ?  OR fullname LIKE ? `,
+        [customer_id, `%${fullname}%`],
     );
     res.json(dataCustomer);
     res.sendStatus(200);
@@ -128,37 +128,70 @@ app.get("/api/order", async (req, res) => {
 });
 
 app.post("/api/order/remove", async (req, res) => {
-    const { id } = req.body;
-    await db.query("DELETE FROM quanlicuahang.orders WHERE id = ?", [id]);
+    const { order_id } = req.body;
+    await db.query("DELETE FROM quanlicuahang.orders WHERE order_id = ?", [order_id]);
     res.sendStatus(200);
 });
 
 app.post("/api/order/add", async (req, res) => {
-    const { id, customer_id, order_date, total_price, status } = req.body;
+    const { order_id, customer_id, order_date, total_price, status, created_by } = req.body;
     await db.query(
-        "INSERT INTO quanlicuahang.orders (id, customer_id, order_date, total_price, status) VALUES (?, ?, ?, ?, ?)",
-        [id, customer_id, order_date, total_price, status],
+        "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, status, created_by) VALUES (?, ?, ?, ?, ?, ?)",
+        [order_id, customer_id, order_date, total_price, status, created_by],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/order/fix", async (req, res) => {
-    const { id, customer_id, order_date, total_price, status, idOld } =
+    const { order_id, customer_id, order_date, total_price, status, idOld } =
         req.body;
     await db.query(
-        "UPDATE quanlicuahang.orders SET id = ?, customer_id = ?, order_date = ?, total_price = ?, status = ? WHERE id = ?",
-        [id, customer_id, order_date, total_price, status, idOld],
+        "UPDATE quanlicuahang.orders SET order_id = ?, customer_id = ?, order_date = ?, total_price = ?, status = ? WHERE order_id = ?",
+        [order_id, customer_id, order_date, total_price, status, idOld],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/order/search", async (req, res) => {
-    const { id, customer_id } = req.body;
+    const { order_id, customer_id } = req.body;
     const [dataOrder] = await db.query(
-        "SELECT * FROM quanlicuahang.orders WHERE id = ? OR customer_id = ?",
-        [id, customer_id],
+        "SELECT * FROM quanlicuahang.orders WHERE order_id = ? OR customer_id = ?",
+        [order_id, customer_id],
     );
     res.json(dataOrder);
+    res.sendStatus(200)
+});
+
+app.post("/api/order/detail", async (req, res) => {
+    const { id } = req.body;
+    const [data] = await db.query(
+        `
+        SELECT
+            *
+        FROM
+            quanlicuahang.orders AS O
+        INNER JOIN
+            quanlicuahang.customers AS C ON O.customer_id = C.customer_id
+        INNER JOIN
+            quanlicuahang.order_detail AS OD ON O.order_id = OD.order_id
+        INNER JOIN
+            quanlicuahang.products AS P ON OD.product_id = P.product_id
+        WHERE
+           O.order_id = ?;`,
+        [id],
+    );
+    console.log(data)
+    res.json(data);
+    res.sendStatus(200)
+});
+
+app.post("/api/order_detail/add", async (req, res) => {
+    const { order_id, product_id, unit_quantity, unit_price } = req.body;
+    await db.query(
+        "INSERT INTO quanlicuahang.order_detail (order_id, product_id, unit_quantity, unit_price) VALUES (?, ?, ?, ?)",
+        [order_id, product_id, unit_quantity, unit_price],
+    );
+    res.sendStatus(200);
 });
 
 // ============================================================
@@ -171,42 +204,55 @@ app.get("/api/warehouse", async (req, res) => {
 });
 
 app.post("/api/warehouse/remove", async (req, res) => {
-    const { id } = req.body;
-    await db.query("DELETE FROM quanlicuahang.warehouses WHERE id = ?", [id]);
+    const { warehouse_id } = req.body;
+    await db.query("DELETE FROM quanlicuahang.warehouses WHERE warehouse_id = ?", [warehouse_id]);
     res.sendStatus(200);
 });
 
 app.post("/api/warehouse/add", async (req, res) => {
-    const { id, supplier_name, import_date, total_value, status } = req.body;
+    const { warehouse_id, supplier_name, import_date, total_value, status } = req.body;
     await db.query(
-        `INSERT INTO quanlicuahang.warehouses (id, supplier_name, import_date, total_value, status) 
+        `INSERT INTO quanlicuahang.warehouses (warehouse_id, supplier_name, import_date, total_value, status) 
      VALUES (?, ?, ?, ?, ?)`,
-        [id, supplier_name, import_date, total_value, status],
+        [warehouse_id, supplier_name, import_date, total_value, status],  
     );
     res.sendStatus(200);
 });
 
 app.post("/api/warehouse/fix", async (req, res) => {
-    const { id, supplier_name, import_date, total_value, status, idOld } =
+    const { warehouse_id, supplier_name, import_date, total_value, status, idOld } =
         req.body;
     await db.query(
         `UPDATE quanlicuahang.warehouses 
-     SET id = ?, supplier_name = ?, import_date = ?, total_value = ?, status = ? 
-     WHERE id = ?`,
-        [id, supplier_name, import_date, total_value, status, idOld],
+     SET warehouse_id = ?, supplier_name = ?, import_date = ?, total_value = ?, status = ? 
+     WHERE warehouse_id = ?`,
+        [warehouse_id, supplier_name, import_date, total_value, status, idOld],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/warehouse/search", async (req, res) => {
-    const { id, supplier_name } = req.body;
+    const { warehouse_id, supplier_name } = req.body;
     const [dataWarehouse] = await db.query(
         `SELECT * FROM quanlicuahang.warehouses 
-     WHERE id = ? OR supplier_name LIKE ?`,
-        [id, `%${supplier_name}%`],
+     WHERE warehouse_id = ? OR supplier_name LIKE ?`,
+        [warehouse_id, `%${supplier_name}%`],
     );
     res.json(dataWarehouse);
+    res.sendStatus(200)
 });
+
+app.post("/api/warehouse/detail" , async (req,res) => {
+    const { id } = req.body;
+    console.log(id)
+    const [dataProduct] = await db.query(
+         `SELECT * FROM quanlicuahang.products 
+     WHERE warehouse_id = ?`,
+        [ id],
+    )
+    res.json(dataProduct)
+    res.sendStatus(200)
+})
 
 
 //-----------------------------------------------------------------------------
@@ -231,7 +277,6 @@ app.post("/api/user/fix", async (req,res) => {
 
 app.post("/api/users_detail", async (req,res) => {
     const {username} = req.body
-    console.log(username)
     try{
         const [row] = await db.query(
             `select * from quanlicuahang.users_detail where username = ?`, [username]
@@ -245,6 +290,8 @@ app.post("/api/users_detail", async (req,res) => {
     }
 
 })
+
+
 
 app.post("/api/findUser", async (req,res) => {
     const {username, password} = req.body
