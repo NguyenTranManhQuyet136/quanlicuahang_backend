@@ -16,11 +16,8 @@ app.get("/test", async (req, res) => {
 app.post("/api/login", async (req, res) => {
     try {
         const { username, password } = req.body;
-        const rows = await db.query(
-            "SELECT * FROM users WHERE username = ? AND password = ?",
-            [username, password],
-        );
-
+        const query = `SELECT * FROM users WHERE username = '${username}' AND password = '${password}'`;
+        const rows = await db.query(query);
 
         const row = rows[0];
         if (row.length == 1) {
@@ -56,12 +53,6 @@ app.post("/api/register", async (req, res) => {
             [username]
         );
 
-
-
-        // await db.query(
-        //     "INSERT INTO users_detail (username, fullname, email) VALUES (?, ?, ?)",
-        //     [username, '', '']
-        // );
 
         res.json({ status: true, message: "Đăng ký thành công" });
     } catch (error) {
@@ -103,12 +94,27 @@ app.post("/api/product/fix", async (req, res) => {
 
 app.post("/api/product/search", async (req, res) => {
     const { product_id, name } = req.body;
+    console.log(product_id, name);
     const [dataProduct] = await db.query(
         `SELECT * FROM quanlicuahang.products WHERE product_id = ?  OR name LIKE ? `,
         [product_id, `%${name}%`],
     );
     res.json(dataProduct);
     res.sendStatus(200);
+});
+
+app.get("/api/product/generate-id", async (req, res) => {
+    let id;
+    let isUnique = false;
+    while (!isUnique) {
+        const randomNum = Math.floor(Math.random() * 10000);
+        id = `SP${randomNum}`;
+        const [rows] = await db.query("SELECT product_id FROM quanlicuahang.products WHERE product_id = ?", [id]);
+        if (rows.length === 0) {
+            isUnique = true;
+        }
+    }
+    res.json({ id });
 });
 
 // -----------------------------------------------------------------------------------------------------------------------------
@@ -212,6 +218,21 @@ app.post("/api/order/search", async (req, res) => {
     res.sendStatus(200)
 });
 
+
+app.get("/api/order/generate-id", async (req, res) => {
+    let id;
+    let isUnique = false;
+    while (!isUnique) {
+        const randomNum = Math.floor(Math.random() * 10000);
+        id = `ORD${randomNum}`;
+        const [rows] = await db.query("SELECT order_id FROM quanlicuahang.orders WHERE order_id = ?", [id]);
+        if (rows.length === 0) {
+            isUnique = true;
+        }
+    }
+    res.json({ id });
+});
+
 app.post("/api/order/detail", async (req, res) => {
     const { id } = req.body;
     const [data] = await db.query(
@@ -230,7 +251,6 @@ app.post("/api/order/detail", async (req, res) => {
            O.order_id = ?;`,
         [id],
     );
-    console.log(data)
     res.json(data);
     res.sendStatus(200)
 });
@@ -245,18 +265,19 @@ app.post("/api/order_detail/add", async (req, res) => {
 });
 
 app.post("/api/checkout", async (req, res) => {
-    const { customer_id, total_price, note, cart_items } = req.body;
-    const order_id = `ORD-${Date.now()}`;
+    const { customer_id, total_price, note, cart_items, order_id: providedOrderId } = req.body;
+    const order_id = providedOrderId || `ORD-${Date.now()}`;
     const order_date = new Date().toISOString().split('T')[0];
 
+    console.log(customer_id);
+
     try {
-        // 1. Create Order
         await db.query(
             "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by, note) VALUES (?, ?, ?, ?, ?, ?)",
             [order_id, customer_id, order_date, total_price, customer_id, note || '']
         );
 
-        // 2. Create Order Details
+       
         for (const item of cart_items) {
             await db.query(
                 "INSERT INTO quanlicuahang.order_detail (order_id, product_id, unit_quantity, unit_price) VALUES (?, ?, ?, ?)",
@@ -321,7 +342,6 @@ app.post("/api/warehouse/search", async (req, res) => {
 
 app.post("/api/warehouse/detail", async (req, res) => {
     const { id } = req.body;
-    console.log(id)
     const [dataProduct] = await db.query(
         `SELECT * FROM quanlicuahang.products 
      WHERE warehouse_id = ?`,
@@ -331,6 +351,21 @@ app.post("/api/warehouse/detail", async (req, res) => {
     res.sendStatus(200)
 })
 
+
+
+app.get("/api/warehouse/generate-id", async (req, res) => {
+    let id;
+    let isUnique = false;
+    while (!isUnique) {
+        const randomNum = Math.floor(Math.random() * 10000);
+        id = `WH${randomNum}`;
+        const [rows] = await db.query("SELECT warehouse_id FROM quanlicuahang.warehouses WHERE warehouse_id = ?", [id]);
+        if (rows.length === 0) {
+            isUnique = true;
+        }
+    }
+    res.json({ id });
+});
 
 //-----------------------------------------------------------------------------
 app.post("/api/user/fix", async (req, res) => {
