@@ -8,10 +8,6 @@ const port = 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-app.get("/test", async (req, res) => {
-    const [rows] = await db.query("SELECT * FROM users");
-    res.json(rows);
-});
 
 app.post("/api/login", async (req, res) => {
     try {
