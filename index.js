@@ -8,7 +8,6 @@ const port = 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-s
 app.post("/api/login", async (req, res) => {
     try {
         const { username, password } = req.body;
