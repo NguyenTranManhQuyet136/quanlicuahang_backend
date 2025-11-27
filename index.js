@@ -185,20 +185,20 @@ app.post("/api/order/remove", async (req, res) => {
 });
 
 app.post("/api/order/add", async (req, res) => {
-    const { order_id, customer_id, order_date, total_price, created_by } = req.body;
+    const { order_id, customer_id, order_date, total_price, created_by, status } = req.body;
     await db.query(
-        "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by) VALUES (?, ?, ?, ?, ?)",
-        [order_id, customer_id, order_date, total_price, created_by],
+        "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by, status) VALUES (?, ?, ?, ?, ?, ?)",
+        [order_id, customer_id, order_date, total_price, created_by, status || 'đang chờ xác nhận'],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/order/fix", async (req, res) => {
-    const { order_id, customer_id, order_date, total_price, idOld } =
+    const { order_id, customer_id, order_date, total_price, status, idOld } =
         req.body;
     await db.query(
-        "UPDATE quanlicuahang.orders SET order_id = ?, customer_id = ?, order_date = ?, total_price = ? WHERE order_id = ?",
-        [order_id, customer_id, order_date, total_price, idOld],
+        "UPDATE quanlicuahang.orders SET order_id = ?, customer_id = ?, order_date = ?, total_price = ?, status = ? WHERE order_id = ?",
+        [order_id, customer_id, order_date, total_price, status, idOld],
     );
     res.sendStatus(200);
 });
@@ -268,11 +268,11 @@ app.post("/api/checkout", async (req, res) => {
 
     try {
         await db.query(
-            "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by, note) VALUES (?, ?, ?, ?, ?, ?)",
-            [order_id, customer_id, order_date, total_price, customer_id, note || '']
+            "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by, note, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [order_id, customer_id, order_date, total_price, customer_id, note || '', 'đang chờ xác nhận']
         );
 
-       
+
         for (const item of cart_items) {
             await db.query(
                 "INSERT INTO quanlicuahang.order_detail (order_id, product_id, unit_quantity, unit_price) VALUES (?, ?, ?, ?)",
