@@ -70,19 +70,19 @@ app.post("/api/product/remove", async (req, res) => {
 });
 
 app.post("/api/product/add", async (req, res) => {
-    const { product_id, name, price, description, type, image, quantity, warehouse_id, status } = req.body;
+    const { product_id, name, price, price_sell, description, type, image, quantity, warehouse_id, status } = req.body;
     await db.query(
-        `INSERT INTO quanlicuahang.products (product_id, name, price, description, type, image, quantity, warehouse_id, status) VALUES (?,?,?,?,?,?,?,?,?)`,
-        [product_id, name, price, description, type, image, quantity, warehouse_id, status],
+        `INSERT INTO quanlicuahang.products (product_id, name, price, price_sell, description, type, image, quantity, warehouse_id, status) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        [product_id, name, price, price_sell, description, type, image, quantity, warehouse_id, status],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/product/fix", async (req, res) => {
-    const { product_id, name, price, description, type, image, quantity, warehouse_id, status, idOld } = req.body;
+    const { product_id, name, price, price_sell, description, type, image, quantity, warehouse_id, status, idOld } = req.body;
     await db.query(
-        ` UPDATE quanlicuahang.products SET product_id = ?, name = ?, price = ?, description = ?, type = ?, image = ?, quantity = ?, warehouse_id = ?, status = ? WHERE product_id = ?`,
-        [product_id, name, price, description, type, image, quantity, warehouse_id, status, idOld],
+        ` UPDATE quanlicuahang.products SET product_id = ?, name = ?, price = ?, price_sell = ?, description = ?, type = ?, image = ?, quantity = ?, warehouse_id = ?, status = ? WHERE product_id = ?`,
+        [product_id, name, price, price_sell, description, type, image, quantity, warehouse_id, status, idOld],
     );
     res.sendStatus(200);
 });
@@ -91,8 +91,8 @@ app.post("/api/product/search", async (req, res) => {
     const { product_id, name } = req.body;
     console.log(product_id, name);
     const [dataProduct] = await db.query(
-        `SELECT * FROM quanlicuahang.products WHERE product_id = ?  OR name LIKE ? `,
-        [product_id, `%${name}%`],
+        `SELECT * FROM quanlicuahang.products WHERE product_id LIKE ?  OR name LIKE ? `,
+        [`%${product_id}%`, `%${name}%`],
     );
     res.json(dataProduct);
     res.sendStatus(200);
@@ -123,6 +123,14 @@ app.get("/api/customer", async (req, res) => {
 
 app.post("/api/customer/remove", async (req, res) => {
     const { customer_id } = req.body;
+    const [orders] = await db.query("SELECT order_id FROM quanlicuahang.orders WHERE customer_id = ?", [customer_id]);
+
+    if (orders.length > 0) {
+        const orderIds = orders.map(order => order.order_id);
+        await db.query("DELETE FROM quanlicuahang.order_detail WHERE order_id IN (?)", [orderIds]);
+        await db.query("DELETE FROM quanlicuahang.orders WHERE customer_id = ?", [customer_id]);
+    }
+
     await db.query("DELETE FROM quanlicuahang.customers WHERE customer_id = ?", [customer_id]);
     res.sendStatus(200);
 });
@@ -188,7 +196,7 @@ app.post("/api/order/add", async (req, res) => {
     const { order_id, customer_id, order_date, total_price, created_by, status } = req.body;
     await db.query(
         "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by, status) VALUES (?, ?, ?, ?, ?, ?)",
-        [order_id, customer_id, order_date, total_price, created_by, status || 'đang chờ xác nhận'],
+        [order_id, customer_id, order_date, total_price, created_by, status || 'Đang chờ xác nhận'],
     );
     res.sendStatus(200);
 });
@@ -203,16 +211,50 @@ app.post("/api/order/fix", async (req, res) => {
     res.sendStatus(200);
 });
 
+app.post("/api/order/update_status", async (req, res) => {
+    const { order_id, status } = req.body;
+    try {
+        await db.query(
+            "UPDATE quanlicuahang.orders SET status = ? WHERE order_id = ?",
+            [status, order_id]
+        );
+        res.sendStatus(200);
+    } catch (error) {
+        console.error(error);
+        res.sendStatus(500);
+    }
+});
+
 app.post("/api/order/search", async (req, res) => {
     const { order_id, customer_id } = req.body;
     const [dataOrder] = await db.query(
-        "SELECT * FROM quanlicuahang.orders WHERE order_id = ? OR customer_id = ?",
-        [order_id, customer_id],
+        "SELECT * FROM quanlicuahang.orders WHERE order_id LIKE ? OR customer_id LIKE ?",
+        [`%${order_id}%`, `%${customer_id}%`],
     );
-    res.json(dataOrder);
+    res.json(dataOrder.reverse());
     res.sendStatus(200)
 });
 
+app.get("/api/profit", async (req, res) => {
+    try {
+        const [rows] = await db.query(`
+            SELECT
+                SUM((od.unit_price - p.price) * od.unit_quantity) as total_profit
+            FROM
+                quanlicuahang.order_detail od
+            JOIN
+                quanlicuahang.products p ON od.product_id = p.product_id
+            JOIN
+                quanlicuahang.orders o ON od.order_id = o.order_id
+            WHERE
+                o.status != 'Đã hủy'
+        `);
+        res.json({ total_profit: rows[0].total_profit || 0 });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(error);
+    }
+});
 
 app.get("/api/order/generate-id", async (req, res) => {
     let id;
@@ -233,7 +275,8 @@ app.post("/api/order/detail", async (req, res) => {
     const [data] = await db.query(
         `
         SELECT
-            *
+            *,
+            O.status AS order_status
         FROM
             quanlicuahang.orders AS O
         INNER JOIN
@@ -269,7 +312,7 @@ app.post("/api/checkout", async (req, res) => {
     try {
         await db.query(
             "INSERT INTO quanlicuahang.orders (order_id, customer_id, order_date, total_price, created_by, note, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [order_id, customer_id, order_date, total_price, customer_id, note || '', 'đang chờ xác nhận']
+            [order_id, customer_id, order_date, total_price, customer_id, note || '', 'Đang chờ xác nhận']
         );
 
 
@@ -277,6 +320,10 @@ app.post("/api/checkout", async (req, res) => {
             await db.query(
                 "INSERT INTO quanlicuahang.order_detail (order_id, product_id, unit_quantity, unit_price) VALUES (?, ?, ?, ?)",
                 [order_id, item.product_id, item.quantity, item.price]
+            );
+            await db.query(
+                "UPDATE quanlicuahang.products SET quantity = quantity - ? WHERE product_id = ?",
+                [item.quantity, item.product_id]
             );
         }
 
@@ -298,28 +345,29 @@ app.get("/api/warehouse", async (req, res) => {
 
 app.post("/api/warehouse/remove", async (req, res) => {
     const { warehouse_id } = req.body;
+    await db.query("DELETE FROM quanlicuahang.products WHERE warehouse_id = ?", [warehouse_id]);
     await db.query("DELETE FROM quanlicuahang.warehouses WHERE warehouse_id = ?", [warehouse_id]);
     res.sendStatus(200);
 });
 
 app.post("/api/warehouse/add", async (req, res) => {
-    const { warehouse_id, supplier_name, import_date, total_value, status } = req.body;
+    const { warehouse_id, supplier_name, import_date, status } = req.body;
     await db.query(
-        `INSERT INTO quanlicuahang.warehouses (warehouse_id, supplier_name, import_date, total_value, status) 
-     VALUES (?, ?, ?, ?, ?)`,
-        [warehouse_id, supplier_name, import_date, total_value, status],
+        `INSERT INTO quanlicuahang.warehouses (warehouse_id, supplier_name, import_date, status) 
+     VALUES (?, ?, ?, ?)`,
+        [warehouse_id, supplier_name, import_date, status],
     );
     res.sendStatus(200);
 });
 
 app.post("/api/warehouse/fix", async (req, res) => {
-    const { warehouse_id, supplier_name, import_date, total_value, status, idOld } =
+    const { warehouse_id, supplier_name, import_date, status, idOld } =
         req.body;
     await db.query(
         `UPDATE quanlicuahang.warehouses 
-     SET warehouse_id = ?, supplier_name = ?, import_date = ?, total_value = ?, status = ? 
+     SET warehouse_id = ?, supplier_name = ?, import_date = ?, status = ? 
      WHERE warehouse_id = ?`,
-        [warehouse_id, supplier_name, import_date, total_value, status, idOld],
+        [warehouse_id, supplier_name, import_date, status, idOld],
     );
     res.sendStatus(200);
 });
@@ -328,8 +376,8 @@ app.post("/api/warehouse/search", async (req, res) => {
     const { warehouse_id, supplier_name } = req.body;
     const [dataWarehouse] = await db.query(
         `SELECT * FROM quanlicuahang.warehouses 
-     WHERE warehouse_id = ? OR supplier_name LIKE ?`,
-        [warehouse_id, `%${supplier_name}%`],
+     WHERE warehouse_id LIKE ? OR supplier_name LIKE ?`,
+        [`%${warehouse_id}%`, `%${supplier_name}%`],
     );
     res.json(dataWarehouse);
     res.sendStatus(200)
@@ -338,8 +386,14 @@ app.post("/api/warehouse/search", async (req, res) => {
 app.post("/api/warehouse/detail", async (req, res) => {
     const { id } = req.body;
     const [dataProduct] = await db.query(
-        `SELECT * FROM quanlicuahang.products 
-     WHERE warehouse_id = ?`,
+        `SELECT 
+            P.*,
+            W.supplier_name,
+            W.import_date,
+            W.status AS warehouse_status
+         FROM quanlicuahang.products P
+         JOIN quanlicuahang.warehouses W ON P.warehouse_id = W.warehouse_id
+         WHERE P.warehouse_id = ?`,
         [id],
     )
     res.json(dataProduct)
@@ -364,7 +418,7 @@ app.get("/api/warehouse/generate-id", async (req, res) => {
 
 //-----------------------------------------------------------------------------
 app.post("/api/user/fix", async (req, res) => {
-    const { username, fullname, gender, birthday, position, phoneNumber, email } = req.body
+    const { username, fullname, gender, birthday, position, phone_number, email } = req.body
     await db.query(
         `
       UPDATE users_detail
@@ -377,7 +431,7 @@ app.post("/api/user/fix", async (req, res) => {
         email = ?
       WHERE username = ?
       `,
-        [fullname, gender, birthday, position, phoneNumber, email, username]
+        [fullname, gender, birthday, position, phone_number, email, username]
     )
     res.sendStatus(200)
 })
@@ -427,6 +481,136 @@ app.post("/api/user/change_password", async (req, res) => {
 })
 
 
+
+
+app.post("/api/admin/history", async (req, res) => {
+    const { content, created_by } = req.body;
+    const time = new Date();
+    try {
+        await db.query(
+            "INSERT INTO quanlicuahang.history_admin (content, time, created_by) VALUES (?, ?, ?)",
+            [content, time, created_by]
+        );
+        res.sendStatus(200);
+    } catch (error) {
+        console.log(error);
+        res.sendStatus(500);
+    }
+});
+
+app.post("/api/user/history", (req, res) => {
+    const { content, created_by } = req.body;
+    const time = new Date();
+    const sql = "INSERT INTO history_user (content, time, created_by) VALUES (?, ?, ?)";
+    db.query(sql, [content, time, created_by], (err, result) => {
+        if (err) {
+            console.log(err);
+            res.json({ message: "Lỗi", status: false });
+        } else {
+            res.json({ message: "Thêm thành công", status: true });
+        }
+    });
+});
+
+app.get("/api/admin/history", async (req, res) => {
+    const { username } = req.query;
+    try {
+        const [rows] = await db.query("SELECT * FROM quanlicuahang.history_admin WHERE created_by = ? ORDER BY time DESC", [username]);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
+app.get("/api/user/history", async (req, res) => {
+    try {
+        const [rows] = await db.query("SELECT * FROM history_user ORDER BY time DESC");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
+app.get("/api/categories", async (req, res) => {
+    try {
+        const [rows] = await db.query("SELECT * FROM categories");
+        res.json(rows);
+    } catch (error) {
+        res.json([]);
+    }
+});
+
+app.post("/api/categories/add", async (req, res) => {
+    const { name } = req.body;
+    try {
+        await db.query("INSERT INTO categories (name) VALUES (?)", [name]);
+        res.sendStatus(200);
+    } catch (error) {
+        res.sendStatus(500);
+    }
+});
+
+app.post("/api/categories/remove", async (req, res) => {
+    const { id } = req.body;
+    try {
+        await db.query("DELETE FROM categories WHERE id = ?", [id]);
+        res.sendStatus(200);
+    } catch (error) {
+        res.sendStatus(500);
+    }
+});
+
+app.get("/api/accounts", async (req, res) => {
+    try {
+        const [rows] = await db.query("SELECT * FROM users");
+        res.json(rows);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
+app.post("/api/accounts/add", async (req, res) => {
+    const { username, password, role } = req.body;
+    try {
+        await db.query("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", [username, password, role]);
+        if (role === 'user') {
+            await db.query("INSERT INTO customers (customer_id) VALUES (?)", [username]);
+        }
+        res.sendStatus(200);
+    } catch (error) {
+        res.sendStatus(500);
+    }
+});
+
+app.post("/api/accounts/remove", async (req, res) => {
+    const { username } = req.body;
+    try {
+        await db.query("DELETE FROM users WHERE username = ?", [username]);
+        res.sendStatus(200);
+    } catch (error) {
+        res.sendStatus(500);
+    }
+});
+
+app.post("/api/accounts/search", async (req, res) => {
+    const { username } = req.body;
+    try {
+        const [rows] = await db.query("SELECT * FROM users WHERE username LIKE ?", [`%${username}%`]);
+        res.json(rows);
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
+app.get("/api/superadmin/history/all", async (req, res) => {
+    try {
+        const [adminRows] = await db.query("SELECT * FROM quanlicuahang.history_admin ORDER BY time DESC");
+        const [userRows] = await db.query("SELECT * FROM history_user ORDER BY time DESC");
+        res.json({ admin: adminRows, user: userRows });
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
 
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
